@@ -4,6 +4,7 @@ from enum import Enum
 import re
 
 from pydantic import BaseModel, Field, model_validator
+from uncertainties import ufloat_fromstr
 
 class IcsdSubset(Enum):
     EXPERIMENTAL_INORGANIC = "experimental_inorganic"
@@ -58,6 +59,7 @@ class IcsdAdvancedSearchKeys(Enum):
     POLARAXIS = "polaraxis"
 
 class IcsdDataFields(Enum):
+    
     CollectionCode = "collection_code"
     CcdcNo = "ccdc_no"
     HMS = "h_m_s"
@@ -114,24 +116,37 @@ class CellParameters(BaseModel):
     b_uncertainty : float | None = None
     c_uncertainty : float | None = None
 
+    alpha_uncertainty : float | None = None
+    beta_uncertainty : float | None = None
+    gamma_uncertainty : float | None = None
+
     @model_validator(mode="before")
     @classmethod
     def from_str(cls, config):
+        """Parse space-separated lattice parameters."""
+        lps = ["a","b","c","alpha","beta","gamma"]
         if isinstance(config,str):
             vals = config.split()
-            config = {
-                k : vals[i] for i, k in enumerate(
-                    ["a","b","c","alpha","beta","gamma"]
-                )
-            }
-            # need regex parsing for uncertainties
-            #for k in ("a","b","c")
+            config = {}
+            for i, lp in enumerate(lps):
+                if "(" in vals[i]:
+                    v_w_u = ufloat_fromstr(vals[i])
+                    config[lp] = v_w_u.n
+                    config[f"{lp}_uncertainty"] = v_w_u.s
+                else:
+                    config[lp] = float(vals[i])        
 
         return config
 
 class IcsdPropertyDoc(BaseModel):
+    """General container for ICSD data."""
 
-    collection_code : int | None = Field(None)
+    collection_code : int | None = Field(
+        None, description="The ICSD identifier of this entry."
+    )
+    cif : str | None = Field(
+        None, description="The CIF file associated with this entry."
+    )
     ccdc_no : int | None = Field(None)
     ccdc : int | None = None
 
@@ -150,7 +165,7 @@ class IcsdPropertyDoc(BaseModel):
     journal : str | None = None
     publication_year : int | None = None
     volume : int | None = None
-    page : int | None = None
+    page : str | None = None
     reference : str | None = None
 
     cell_parameter : CellParameters | None = None
