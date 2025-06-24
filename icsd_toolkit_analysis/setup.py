@@ -12,7 +12,7 @@ setup(
     name="kapstick",
     packages=find_namespace_packages(include=["src.kapstick.*"]),
     version="0.0.1",
-    install_requires=["pymongo","numpy"],
+    install_requires=["pymongo", "numpy"],
     extras_require={
         "dev": [
             "pytest==7.1.2",
