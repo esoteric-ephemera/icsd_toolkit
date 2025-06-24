@@ -19,8 +19,8 @@ dependencies = [
   "pymatgen",
   "pandas",
 ]
-name = "icsd_toolkit"
-requires-python = '>=3.9,<3.13'
+name = "icsd_toolkit_client"
+requires-python = '>=3.11,<3.13'
 dynamic = ["version"]
 license = { text = "modified BSD" }
 description = "Tools for analyzing and quality checking ICSD data."
