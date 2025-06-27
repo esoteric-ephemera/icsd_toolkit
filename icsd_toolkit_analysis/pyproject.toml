@@ -16,11 +16,10 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
+  "icsd_toolkit.client",
   "pymatgen",
-  "pandas",
-  "uncertainties",
 ]
-name = "icsd_toolkit_client"
+name = "icsd_toolkit_analysis"
 requires-python = '>=3.11,<3.13'
 dynamic = ["version"]
 license = { text = "modified BSD" }
@@ -28,7 +27,8 @@ description = "Tools for analyzing and quality checking ICSD data."
 keywords = ["icsd"]
 readme = "README.md"
 
-
+[project.optional-dependencies]
+cif = ["pycodcif"]
 
 [tool.setuptools.dynamic]
 readme = { file = ["README.md"] }
@@ -39,7 +39,7 @@ repository = "https://github.com/esoteric-ephemera/icsd_toolkit"
 [tool.setuptools.packages.find]
 exclude = ["tests"]
 where = ["src"]
-include = ["icsd_toolkit.client"]
+include = ["icsd_toolkit.analysis"]
 
 
 [tool.mypy]
