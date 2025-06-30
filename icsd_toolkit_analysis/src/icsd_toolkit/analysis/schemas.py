@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import warnings
 
 from pathlib import Path
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, field_serializer, ConfigDict
 
 from pymatgen.core import Composition, Structure
 from pymatgen.io.cif import CifParser
@@ -74,6 +74,8 @@ def _pycodcif_to_pymatgen(
 
 
 class IcsdStructureDoc(BaseModel):
+
+    model_config = ConfigDict(use_enum_values=True)
 
     chemsys: str | None = None
     ions: list[str] | None = None
