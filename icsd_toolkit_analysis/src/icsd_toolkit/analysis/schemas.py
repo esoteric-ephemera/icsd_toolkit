@@ -53,7 +53,7 @@ def _pycodcif_to_pymatgen(
         f.write("".join(filter(lambda x: x in ASCII_CHARS, cif_str)))
         f.seek(0)
 
-    meta, num_errors, errors = cod_cif_parse(temp_file.name)
+    meta, num_errors, errors = cod_cif_parse(temp_file.name,{"fix_all": 1})
     if num_errors:
         warnings.warn("pycodcif:\n" + "\n  ".join(errors))
 
@@ -87,7 +87,7 @@ class IcsdStructureDoc(BaseModel):
     path: Path | None = None
     icsd_id: int | None = None
     remarks: list[str] | None = None
-    icsd_category: IcsdSubset | None = None
+    subset: IcsdSubset | None = None
     matched_icsd_ids: list[str] | None = None
 
     structure: Structure | None = None
@@ -162,7 +162,7 @@ class IcsdStructureDoc(BaseModel):
                 "num_elements": len(composition.elements),
                 "volume_per_atom": structure.volume / structure.num_sites,
                 "density": structure.density,
-                "is_ordered": struct_is_disordered,
+                "is_ordered": not struct_is_disordered,
             }
         )
 
@@ -190,4 +190,5 @@ class IcsdStructureDoc(BaseModel):
         return cls.from_cif_str(
             doc.cif,
             icsd_id=doc.collection_code,
+            subset = doc.subset,
         )

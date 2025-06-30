@@ -6,11 +6,11 @@ This module is based on
 
 from __future__ import annotations
 
-import multiprocessing.queues
 import os
 import re
 import requests
 from time import time
+from typing import TYPE_CHECKING
 
 import logging
 
@@ -25,6 +25,9 @@ from icsd_toolkit.client.enums import (
     IcsdDataFields,
 )
 from icsd_toolkit.client.schemas import IcsdPropertyDoc
+
+if TYPE_CHECKING:
+    from typing import Any
 
 SETTINGS = IcsdClientSettings()
 _ICSD_TOKEN_TIMEOUT = 3600  # ICSD tokens expire in one hour
@@ -148,7 +151,7 @@ class IcsdClient(BaseModel):
         include_cif: bool = False,
         include_metadata: bool = True,
         _data: list | None = None,
-    ) -> list:
+    ) -> list[dict[str,Any]]:
 
         self.refresh_session(force=True)
         search_props = [
@@ -205,7 +208,7 @@ class IcsdClient(BaseModel):
 
                 data += [
                     {IcsdDataFields[k].value: row[i] for i, k in enumerate(columns)}
-                    for row in _data[1:]
+                    for row in csv_data[1:]
                 ]
             else:
                 logger.info(response.content)
@@ -217,9 +220,6 @@ class IcsdClient(BaseModel):
                     data[i]["cif"] = cifs.get(int(doc["collection_code"]))
             else:
                 data = [{"collection_code": cc, "cif": cif} for cc, cif in cifs.items()]
-
-        if self.use_document_model:
-            data = [IcsdPropertyDoc(**props) for props in data]
 
         if _data:
             _data.extend(data)
@@ -284,9 +284,16 @@ class IcsdClient(BaseModel):
                 proc.join()
             return list(res)
 
-        return self._search(
+        data = self._search(
             idxs,
             properties=properties,
             include_cif=include_cif,
             include_metadata=include_metadata,
         )
+        if subset:
+            for i in range(len(data)):
+                data[i]["subset"] = subset
+
+        if self.use_document_model:
+            data = [IcsdPropertyDoc(**props) for props in data]
+        return data
