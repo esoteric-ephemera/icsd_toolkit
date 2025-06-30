@@ -79,7 +79,7 @@ class IcsdStructureDoc(BaseModel):
 
     chemsys: str | None = None
     ions: list[str] | None = None
-    nelements: int | None = None
+    num_elements: int | None = None
     volume_per_atom: float | None = None
     density: float | None = None
     num_sites: int | None = None
@@ -162,6 +162,8 @@ class IcsdStructureDoc(BaseModel):
                 "ions": [str(ele) for ele in structure.composition],
                 "chemsys": "-".join(get_chemsys_from_structure(structure)),
                 "num_elements": len(composition.elements),
+                "composition": composition.as_dict(),
+                "num_sites": len(structure),
                 "volume_per_atom": structure.volume / structure.num_sites,
                 "density": structure.density,
                 "is_ordered": not struct_is_disordered,
