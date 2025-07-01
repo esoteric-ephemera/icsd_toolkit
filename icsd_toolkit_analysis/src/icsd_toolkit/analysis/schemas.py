@@ -162,7 +162,6 @@ class IcsdStructureDoc(BaseModel):
             {
                 "structure": structure,
                 "ions": [str(ele) for ele in structure.composition],
-                "chemsys": "-".join(get_chemsys_from_structure(structure)),
                 "num_elements": len(composition.elements),
                 "composition": composition.as_dict(),
                 "num_sites": len(structure),
@@ -171,6 +170,11 @@ class IcsdStructureDoc(BaseModel):
                 "is_ordered": not struct_is_disordered,
             }
         )
+
+        try:
+            config["chemsys"] = "-".join(get_chemsys_from_structure(structure))
+        except Exception as exc:
+            config["remarks"].append(f"chemsys: {exc}")
 
         with redirect_stderr(StringIO()), redirect_stdout(StringIO()):
             remarks = parser.check(structure)
