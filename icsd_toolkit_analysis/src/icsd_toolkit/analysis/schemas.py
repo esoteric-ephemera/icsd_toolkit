@@ -165,19 +165,22 @@ class IcsdStructureDoc(BaseModel):
                 "num_elements": len(composition.elements),
                 "composition": composition.as_dict(),
                 "num_sites": len(structure),
-                "volume_per_atom": structure.volume / structure.num_sites,
-                "density": structure.density,
+                "volume_per_atom": structure.volume / len(structure),
                 "is_ordered": not struct_is_disordered,
             }
         )
 
         try:
             config["chemsys"] = "-".join(get_chemsys_from_structure(structure))
+            config["density"] = structure.density
         except Exception as exc:
             config["remarks"].append(f"chemsys: {exc}")
 
         with redirect_stderr(StringIO()), redirect_stdout(StringIO()):
-            remarks = parser.check(structure)
+            try:
+                remarks = parser.check(structure)
+            except Exception as exc:
+                remarks = f"pmg_check: {exc}"
         if remarks:
             config["remarks"].append(remarks)
 
@@ -186,7 +189,7 @@ class IcsdStructureDoc(BaseModel):
                 structure.get_space_group_info()
             )
         except Exception as exc:
-            config["remarks"].append(str(exc))
+            config["remarks"].append(f"spacegroup: {exc}")
 
         if len(config["remarks"]) == 0:
             config["remarks"] = None
