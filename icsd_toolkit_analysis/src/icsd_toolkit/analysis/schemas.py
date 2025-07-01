@@ -96,10 +96,12 @@ class IcsdStructureDoc(BaseModel):
     composition: dict[str, float] | None = None
     cif: str | None = None
 
-    @field_serializer("structure")
-    def sanitize_structure_for_parquet(self, structure: Structure | None) -> str | None:
-        if structure is not None:
-            return json.dumps(structure.as_dict())
+    @field_serializer("structure","composition")
+    def sanitize_structure_for_parquet(self, field: Structure | Composition | None) -> str | None:
+        if field is not None:
+            if hasattr(field,"as_dict"):
+                field = field.as_dict()
+            return json.dumps(field)
         return None
 
     @classmethod
