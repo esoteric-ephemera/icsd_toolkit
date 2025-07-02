@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import warnings
 
 from pathlib import Path
-from pydantic import BaseModel, field_serializer, ConfigDict
+from pydantic import BaseModel, field_serializer, model_validator, ConfigDict
 
 from pymatgen.core import Composition, Structure
 from pymatgen.io.cif import CifParser
@@ -22,6 +22,7 @@ except ImportError:
     cod_cif_parse = None
 
 if TYPE_CHECKING:
+    from typing import Any
     from typing_extensions import Self
 
 # These are only used for the pycodcif -> pymatgen interface
@@ -90,7 +91,7 @@ class IcsdStructureDoc(BaseModel):
     icsd_id: int | None = None
     remarks: list[str] | None = None
     subset: IcsdSubset | None = None
-    matched_icsd_ids: list[str] | None = None
+    matched_icsd_ids: list[int] | None = None
 
     structure: Structure | None = None
     composition: dict[str, float] | None = None
@@ -103,6 +104,14 @@ class IcsdStructureDoc(BaseModel):
                 field = field.as_dict()
             return json.dumps(field)
         return None
+    
+    @model_validator(mode="before")
+    @classmethod
+    def from_dct_obj(cls, config : Any) -> Any:
+        for k in ("structure","composition"):
+            if isinstance(config.get(k),str):
+                config[k] = json.loads(config[k])
+        return config
 
     @classmethod
     def from_cif_str(cls, cif_str: str, **kwargs) -> Self:
