@@ -57,7 +57,7 @@ class MindatClient(BaseModel):
         return session
 
     def _get(self, url):
-        return self.session.get(url, params={"format": "json"}).json()
+        return self.session.get(url).json()
 
     def get_mindat_endpoints(self):
         """Get a list of possible endpoints to search through.
@@ -118,7 +118,7 @@ class MindatClient(BaseModel):
         #         f"Unknown {endpoint=}, valid endpoints are {', '.join(self._valid_endpoints)}"
         #     )
 
-        next_url = f"{self._url}/v1/{endpoint}"
+        next_url = self.get_mindat_endpoints()[endpoint]
         if parallel_requests > 1 and paginate:
             urls = {next_url}
             while next_url:

@@ -28,4 +28,4 @@ class MindatClientSettings(BaseSettings):
         ),
     )
 
-    model_config = SettingsConfigDict(env_prefix="MINDAT_API_")
+    model_config = SettingsConfigDict(env_prefix="MINDAT_")

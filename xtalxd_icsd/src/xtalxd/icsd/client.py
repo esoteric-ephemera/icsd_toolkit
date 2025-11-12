@@ -32,7 +32,9 @@ if TYPE_CHECKING:
     from typing import Any
 
 SETTINGS = IcsdClientSettings()
-_ICSD_TOKEN_TIMEOUT = 3600  # ICSD tokens expire in one hour
+
+# ICSD tokens expire in one hour
+_ICSD_TOKEN_TIMEOUT = 3600
 
 logger = logging.getLogger("xtalxd_icsd")
 
