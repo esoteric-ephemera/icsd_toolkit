@@ -9,7 +9,7 @@ import pandas as pd
 
 from pymatgen.analysis.structure_matcher import StructureMatcher, ElementComparator
 
-from icsd_toolkit.analysis.schemas import IcsdStructureDoc
+from xtalxd.analysis.schemas import IcsdStructureDoc
 
 if TYPE_CHECKING:
     from pymatgen.core import Structure

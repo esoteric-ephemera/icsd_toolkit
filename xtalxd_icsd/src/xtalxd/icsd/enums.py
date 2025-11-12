@@ -46,7 +46,7 @@ class IcsdAdvancedSearchKeys(Enum):
     SAMPLETYPE = "sample_type"
     RADIATIONTYPE = "radiation_type"
     STRUCTURETYPE = "structure_type"
-    SPACEGROUPSYMBOL = "space_groups_ymbol"
+    SPACEGROUPSYMBOL = "space_group_symbol"
     SPACEGROUPNUMBER = "space_group_number"
     BRAVAISLATTICE = "bravais_lattice"
     CRYSTALSYSTEM = "crystal_system"

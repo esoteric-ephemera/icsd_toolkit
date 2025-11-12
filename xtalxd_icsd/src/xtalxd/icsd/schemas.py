@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from uncertainties import ufloat_fromstr
 
-from icsd_toolkit.client.enums import IcsdSubset
+from xtalxd.icsd.enums import IcsdSubset
 
 if TYPE_CHECKING:
     from typing import Any

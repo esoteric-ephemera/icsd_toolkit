@@ -9,8 +9,10 @@ from __future__ import annotations
 import os
 import re
 import requests
+from requests.adapters import HTTPAdapter
 from time import time
 from typing import TYPE_CHECKING
+from urllib3.util.retry import Retry
 
 import logging
 
@@ -18,13 +20,13 @@ import multiprocessing
 import numpy as np
 from pydantic import BaseModel, Field, PrivateAttr
 
-from icsd_toolkit.client.settings import IcsdClientSettings
-from icsd_toolkit.client.enums import (
+from xtalxd.icsd.settings import IcsdClientSettings
+from xtalxd.icsd.enums import (
     IcsdAdvancedSearchKeys,
     IcsdSubset,
     IcsdDataFields,
 )
-from icsd_toolkit.client.schemas import IcsdPropertyDoc
+from xtalxd.icsd.schemas import IcsdPropertyDoc
 
 if TYPE_CHECKING:
     from typing import Any
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
 SETTINGS = IcsdClientSettings()
 _ICSD_TOKEN_TIMEOUT = 3600  # ICSD tokens expire in one hour
 
-logger = logging.getLogger("icsd_toolkit.client")
+logger = logging.getLogger("xtalxd_icsd")
 
 
 class IcsdClient(BaseModel):
@@ -50,6 +52,7 @@ class IcsdClient(BaseModel):
 
     _auth_token: str | None = PrivateAttr(None)
     _session_start_time: float | None = PrivateAttr(None)
+    _session: requests.Session | None = PrivateAttr(None)
 
     @property
     def _is_windows(self) -> bool:
@@ -64,11 +67,13 @@ class IcsdClient(BaseModel):
             or ((time() - self._session_start_time) > 0.98 * _ICSD_TOKEN_TIMEOUT)
             or force
         ):
-            self.logout()
+            if self._session:
+                self.logout()
             self._session_start_time = time()
             self.login()
 
     def login(self) -> None:
+
         response = requests.post(
             "https://icsd.fiz-karlsruhe.de/ws/auth/login",
             headers={
@@ -87,15 +92,36 @@ class IcsdClient(BaseModel):
         else:
             logger.info(response.content)
 
+        self._session = requests.Session()
+        self._session.headers = {"ICSD-Auth-Token": self._auth_token}
+        retry = Retry(
+            total=self.max_retries,
+            read=self.max_retries,
+            connect=self.max_retries,
+            respect_retry_after_header=True,
+            status_forcelist=[429, 504, 502],  # rate limiting
+            backoff_factor=0.1,
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        self._session.mount("http://", adapter)
+        self._session.mount("https://", adapter)
+
     def logout(self) -> None:
-        _ = self._get(
+
+        if not self._session:
+            return
+
+        _ = self._session.get(
             "https://icsd.fiz-karlsruhe.de/ws/auth/logout",
             headers={
                 "accept": "text/plain",
             },
+            params=[("windowsclient", self._is_windows)],
         )
         self._auth_token = None
         self._session_start_time = None
+        self._session.close()
+        self._session = None
 
     def __enter__(self) -> None:
         self.login()
@@ -109,14 +135,10 @@ class IcsdClient(BaseModel):
 
     def _get(self, *args, **kwargs) -> requests.Response:
         self.refresh_session()
-
-        headers = kwargs.pop("headers", {})
-        headers["ICSD-Auth-Token"] = self._auth_token
-
-        params: tuple[str] = kwargs.pop("params", ())
-        params = tuple(list(params) + [("windowsclient", self._is_windows)])
-
-        resp = requests.get(*args, **kwargs, headers=headers, params=params)
+        params = tuple(
+            list(kwargs.pop("params", [])) + [("windowsclient", self._is_windows)]
+        )
+        resp = self._session.get(*args, **kwargs, params=params)
         if resp.status_code != 200:
             logger.info(resp.content)
         return resp
@@ -151,9 +173,9 @@ class IcsdClient(BaseModel):
         include_cif: bool = False,
         include_metadata: bool = True,
         _data: list | None = None,
-    ) -> list[dict[str,Any]]:
+    ) -> list[dict[str, Any]]:
 
-        self.refresh_session(force=True)
+        self.refresh_session()
         search_props = [
             (
                 IcsdDataFields[prop].name
@@ -188,6 +210,9 @@ class IcsdClient(BaseModel):
             return list(indices)
 
         if include_metadata:
+            if "CollectionCode" not in search_props:
+                search_props.append("CollectionCode")
+
             response = self._get(
                 "https://icsd.fiz-karlsruhe.de/ws/csv",
                 headers={

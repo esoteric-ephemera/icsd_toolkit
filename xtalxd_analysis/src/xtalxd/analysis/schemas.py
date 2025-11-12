@@ -3,8 +3,9 @@ from __future__ import annotations
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 import json
+from string import printable
+from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
-import warnings
 
 from pathlib import Path
 from pydantic import BaseModel, field_serializer, model_validator, ConfigDict
@@ -12,26 +13,63 @@ from pydantic import BaseModel, field_serializer, model_validator, ConfigDict
 from pymatgen.core import Composition, Structure
 from pymatgen.io.cif import CifParser
 
-from icsd_toolkit.client.enums import IcsdSubset
-from icsd_toolkit.client.schemas import IcsdPropertyDoc
+from xtalxd.icsd.client.client.enums import IcsdSubset
+from xtalxd.icsd.client.client.schemas import IcsdPropertyDoc
 
-try:
-    from pycodcif import parse as cod_cif_parse
-
-except ImportError:
-    cod_cif_parse = None
+from pycodcif.pycodcif import CifFile, cif_print
 
 if TYPE_CHECKING:
     from typing import Any
     from typing_extensions import Self
 
-# These are only used for the pycodcif -> pymatgen interface
-if cod_cif_parse:
-    from tempfile import NamedTemporaryFile
-    from pymatgen.io.cif import CifBlock
-    from string import printable
+ASCII_CHARS = set(printable)
 
-    ASCII_CHARS = set(printable)
+DEFAULT_COD_CIF_OPTIONS = {
+    k: 1
+    for k in (
+        "fix_errors",
+        "fix_data_header",
+        "fix_datablock_names",
+        "fix_duplicate_tags_with_same_values",
+        "fix_duplicate_tags_with_empty_values",
+        "fix_string_quotes",
+        "allow_uqstring_brackets",
+        "fix_ctrl_z",
+        "fix_non_ascii_symbols",
+        "fix_missing_closing_double_quote",
+        "fix_missing_closing_single_quote",
+    )
+}
+
+
+def _pycodcif_to_pymatgen_from_file(
+    file_name: str | Path,
+) -> list[Structure]:
+
+    cif_obj = CifFile(file_name, DEFAULT_COD_CIF_OPTIONS)
+
+    stdout = StringIO()
+    stderr = StringIO()
+    with redirect_stdout(stdout), redirect_stderr(stderr):
+        cif_print(cif_obj._cif)
+        stdout_text = stdout.read()
+        stderr_text = stderr.read()
+
+    return stdout_text, stderr_text, cif_obj
+
+
+def _pycodcif_to_pymatgen_from_str(
+    cif_str: str,
+) -> list[Structure]:
+    temp_file = NamedTemporaryFile(suffix=".cif")
+    with open(temp_file.name, "w", encoding="utf-8") as f:
+        # remove non-ASCII characters
+        f.write(cif_str)
+        f.seek(0)
+
+    output = _pycodcif_to_pymatgen_from_file(temp_file.name)
+    temp_file.close()
+    return output
 
 
 def get_chemsys_from_structure(structure: Structure):
@@ -40,13 +78,37 @@ def get_chemsys_from_structure(structure: Structure):
     )
 
 
+# def _pycodcif_to_pymatgen_from_file(
+#     file_name : str | Path,
+# ) -> list[Structure]:
+
+#     cif_obj = CifFile(file_name)
+#     with StringIO(initial_value=str(cif_obj)) as stio:
+#         structures = CifParser(stio).parse_structures(primitive=True)
+
+#     if num_errors:
+#         warnings.warn("pycodcif:\n" + "\n  ".join(errors))
+
+#     cif_parser = cif_parser or CifParser(file_name)
+
+#     for block in meta:
+#         for k in ("data", "values"):
+#             if (data := block.get(k, None)) is not None:
+#                 break
+
+#         try:
+#             cif_block = CifBlock(data, *[block.get(k) for k in ("loops", "name")])
+#             structures.append(
+#                 cif_parser._get_structure(cif_block, primitive=True, symmetrized=False)
+#             )
+#         except Exception:
+#             continue
+#     return structures
+
+
 def _pycodcif_to_pymatgen(
     cif_str: str, cif_parser: CifParser | None = None
 ) -> list[Structure]:
-
-    structures = []
-    if cod_cif_parse is None:
-        raise ImportError("Please pip install `pycodcif` to use this feature.")
 
     temp_file = NamedTemporaryFile(suffix=".cif")
     with open(temp_file.name, "w", encoding="utf-8") as f:
@@ -54,20 +116,7 @@ def _pycodcif_to_pymatgen(
         f.write("".join(filter(lambda x: x in ASCII_CHARS, cif_str)))
         f.seek(0)
 
-    meta, num_errors, errors = cod_cif_parse(temp_file.name,{"fix_all": 1})
-    if num_errors:
-        warnings.warn("pycodcif:\n" + "\n  ".join(errors))
-
-    cif_parser = cif_parser or CifParser(temp_file.name)
-
-    for block in meta:
-        for k in ("data", "values"):
-            if (data := block.get(k, None)) is not None:
-                break
-        cif_block = CifBlock(data, *[block.get(k) for k in ("loops", "name")])
-        structures.append(
-            cif_parser._get_structure(cif_block, primitive=True, symmetrized=False)
-        )
+    structures = _pycodcif_to_pymatgen_from_file(temp_file.name, cif_parser=cif_parser)
 
     temp_file.close()
 
@@ -97,19 +146,21 @@ class IcsdStructureDoc(BaseModel):
     composition: dict[str, float] | None = None
     cif: str | None = None
 
-    @field_serializer("structure","composition")
-    def sanitize_structure_for_parquet(self, field: Structure | Composition | None) -> str | None:
+    @field_serializer("structure", "composition")
+    def sanitize_structure_for_parquet(
+        self, field: Structure | Composition | None
+    ) -> str | None:
         if field is not None:
-            if hasattr(field,"as_dict"):
+            if hasattr(field, "as_dict"):
                 field = field.as_dict()
             return json.dumps(field)
         return None
-    
+
     @model_validator(mode="before")
     @classmethod
-    def from_dct_obj(cls, config : Any) -> Any:
-        for k in ("structure","composition"):
-            if isinstance(config.get(k),str):
+    def from_dct_obj(cls, config: Any) -> Any:
+        for k in ("structure", "composition"):
+            if isinstance(config.get(k), str):
                 config[k] = json.loads(config[k])
         return config
 
@@ -131,14 +182,11 @@ class IcsdStructureDoc(BaseModel):
         except Exception as exc_pmg:
 
             config["remarks"].append(str(exc_pmg))
-            if cod_cif_parse:
-                try:
+            try:
 
-                    structure = _pycodcif_to_pymatgen(cif_str, cif_parser=parser)[0]
-                except Exception as exc_pycodcif:
-                    config["remarks"].append(str(exc_pycodcif))
-                    parse_fail = True
-            else:
+                structure = _pycodcif_to_pymatgen(cif_str, cif_parser=parser)[0]
+            except Exception as exc_pycodcif:
+                config["remarks"].append(str(exc_pycodcif))
                 parse_fail = True
 
         if parse_fail:
@@ -212,5 +260,5 @@ class IcsdStructureDoc(BaseModel):
         return cls.from_cif_str(
             doc.cif,
             icsd_id=doc.collection_code,
-            subset = doc.subset,
+            subset=doc.subset,
         )

@@ -19,8 +19,10 @@ dependencies = [
   "pymatgen",
   "pandas",
   "uncertainties",
+  "pydantic",
+  "pydantic_settings",
 ]
-name = "icsd_toolkit_client"
+name = "xtalxd.icsd"
 requires-python = '>=3.11,<3.13'
 dynamic = ["version"]
 license = { text = "modified BSD" }
@@ -39,7 +41,7 @@ repository = "https://github.com/esoteric-ephemera/icsd_toolkit"
 [tool.setuptools.packages.find]
 exclude = ["tests"]
 where = ["src"]
-include = ["icsd_toolkit.client"]
+include = ["xtalxd.icsd"]
 
 
 [tool.mypy]

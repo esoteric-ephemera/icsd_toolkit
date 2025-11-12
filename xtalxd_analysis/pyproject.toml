@@ -1,0 +1,47 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools >= 65.0.0", "versioningit ~= 1.0", "wheel"]
+
+[project]
+authors = [
+  { name = "Aaron Kaplan", email = "aaron.kaplan.physics@gmail.com"},
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "xtalxd.icsd",
+  "pymatgen",
+  "pycodcif"
+]
+name = "xtalxd_analysis"
+requires-python = '>=3.11,<3.13'
+dynamic = ["version"]
+license = { text = "modified BSD" }
+description = "Tools for analyzing and quality checking experimental crystallographic data."
+keywords = ["icsd"]
+readme = "README.md"
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.md"] }
+
+[project.urls]
+repository = "https://github.com/esoteric-ephemera/icsd_toolkit"
+
+[tool.setuptools.packages.find]
+exclude = ["tests"]
+where = ["src"]
+include = ["xtalxd.analysis"]
+
+
+[tool.mypy]
+ignore_missing_imports = true
+namespace_packages = true
+explicit_package_bases = true
+plugins = ["pydantic.mypy","uncertainties.mypy"]
