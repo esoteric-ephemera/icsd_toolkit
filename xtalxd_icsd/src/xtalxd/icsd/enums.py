@@ -27,6 +27,7 @@ class IcsdAdvancedSearchKeys(Enum):
     STRUCTUREDFORMULA = "structured_formula"
     CHEMICALNAME = "chemical_name"
     MINERALNAME = "mineral_name"
+    MINERALNAMEIMA = "mineral_name_ima"
     MINERALGROUP = "mineral_group"
     ZVALUECHEMISTRY = "z_value_chemistry"
     ANXFORMULA = "anx_formula"

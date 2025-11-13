@@ -90,9 +90,9 @@ class IcsdClient(BaseModel):
         if response.status_code == 200:
             self._auth_token = response.headers["ICSD-Auth-Token"]
             if self._auth_token is None:
-                logger.info(response.content)
+                logger.warning(response.content)
         else:
-            logger.info(response.content)
+            logger.warning(response.content)
 
         self._session = requests.Session()
         self._session.headers = {"ICSD-Auth-Token": self._auth_token}
@@ -142,7 +142,7 @@ class IcsdClient(BaseModel):
         )
         resp = self._session.get(*args, **kwargs, params=params)
         if resp.status_code != 200:
-            logger.info(resp.content)
+            logger.warning(resp.content)
         return resp
 
     def _get_cifs(self, collection_codes: int | list[int]) -> dict[int, str]:
@@ -177,12 +177,12 @@ class IcsdClient(BaseModel):
         _data: list | None = None,
     ) -> list[dict[str, Any]]:
 
-        self.refresh_session()
+        self.refresh_session(force=True)
         search_props = [
             (
-                IcsdDataFields[prop].name
-                if prop in IcsdDataFields.__members__
-                else IcsdDataFields(prop).name
+                prop.value
+                if isinstance(prop, IcsdDataFields)
+                else IcsdDataFields(prop).value
             )
             for prop in (properties or list(IcsdDataFields))
         ]
@@ -238,7 +238,7 @@ class IcsdClient(BaseModel):
                     for row in csv_data[1:]
                 ]
             else:
-                logger.info(response.content)
+                logger.warning(response.content)
 
         if include_cif:
             cifs = self._get_cifs(indices)
@@ -263,7 +263,9 @@ class IcsdClient(BaseModel):
 
         query_vars = []
         for k in IcsdAdvancedSearchKeys:
-            if (v := kwargs.get(k.value)) is not None:
+            if (v := kwargs.get(k.value)) is not None or (
+                v := kwargs.get(k.name) is not None
+            ):
                 if isinstance(v, tuple):
                     v = f"{v[0]}-{v[1]}"
                 elif isinstance(v, list):
