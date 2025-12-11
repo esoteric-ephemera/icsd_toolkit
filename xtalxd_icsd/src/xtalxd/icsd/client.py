@@ -90,9 +90,16 @@ class IcsdClient(BaseModel):
         if response.status_code == 200:
             self._auth_token = response.headers["ICSD-Auth-Token"]
             if self._auth_token is None:
-                logger.warning(response.content)
+                logger.warning(
+                    f"{self.__module__}.{self.__class__.__name__} "
+                    f"failed to fetch auth token: {response.content}"
+                )
         else:
-            logger.warning(response.content)
+            logger.warning(
+                f"{self.__module__}.{self.__class__.__name__} "
+                "failed to fetch auth token with status code "
+                f"{response.status_code}: {response.content}"
+            )
 
         self._session = requests.Session()
         self._session.headers = {"ICSD-Auth-Token": self._auth_token}
@@ -142,7 +149,11 @@ class IcsdClient(BaseModel):
         )
         resp = self._session.get(*args, **kwargs, params=params)
         if resp.status_code != 200:
-            logger.warning(resp.content)
+            logger.warning(
+                f"{self.__module__}.{self.__class__.__name__} "
+                "failed to fetch content with status code "
+                f"{resp.status_code}: {resp.content}"
+            )
         return resp
 
     def _get_cifs(self, collection_codes: int | list[int]) -> dict[int, str]:
@@ -173,7 +184,7 @@ class IcsdClient(BaseModel):
         indices: list[int],
         properties: list[str | IcsdDataFields] | None = None,
         include_cif: bool = False,
-        include_metadata: bool = True,
+        include_metadata: bool = False,
         _data: list | None = None,
     ) -> list[dict[str, Any]]:
 
@@ -209,7 +220,7 @@ class IcsdClient(BaseModel):
             return data
 
         if not include_cif and not include_metadata:
-            return list(indices)
+            return [{"icsd_internal_id": int(idx) for idx in indices}]
 
         if include_metadata:
             if "CollectionCode" not in search_props:
@@ -238,7 +249,11 @@ class IcsdClient(BaseModel):
                     for row in csv_data[1:]
                 ]
             else:
-                logger.warning(response.content)
+                logger.warning(
+                    f"{self.__module__}.{self.__class__.__name__} "
+                    "csv search failed with status code "
+                    f"{response.status_code}: {response.content}"
+                )
 
         if include_cif:
             cifs = self._get_cifs(indices)
@@ -257,7 +272,7 @@ class IcsdClient(BaseModel):
         subset: IcsdSubset | str | None = None,
         properties: list[str | IcsdDataFields] | None = None,
         include_cif: bool = False,
-        include_metadata: bool = True,
+        include_metadata: bool = False,
         **kwargs,
     ) -> list:
 
