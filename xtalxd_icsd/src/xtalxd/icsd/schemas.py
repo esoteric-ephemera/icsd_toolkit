@@ -60,9 +60,10 @@ class IcsdPropertyDoc(BaseModel):
     collection_code: int | None = Field(
         None, description="The ICSD identifier of this entry."
     )
-    
-    icsd_internal_id : int | None = Field(
-        None, description="The internal identifier for the ICSD, not the collection code / ICSD ID."
+
+    icsd_internal_id: int | None = Field(
+        None,
+        description="The internal identifier for the ICSD, not the collection code / ICSD ID.",
     )
     cif: str | None = Field(
         None, description="The CIF file associated with this entry."
